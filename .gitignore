@@ -1,0 +1,13 @@
+/node_modules
+/dist
+/build
+/public
+/test
+/docs
+/examples
+/scripts
+/tests
+/tools
+/utils
+/vendor
+.env
