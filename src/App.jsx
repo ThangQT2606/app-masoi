@@ -38,6 +38,10 @@ export default function App() {
   const [lovers, setLovers] = useState(null);        // [idA, idB] | null — cặp tình nhân
   const [cupidDone, setCupidDone] = useState(false); // Cupid đã se duyên xong chưa
   const [cupidPick, setCupidPick] = useState([]);    // lựa chọn tạm khi Cupid chọn (tối đa 2)
+  const [showHunterPopup, setShowHunterPopup] = useState(false);
+  const [hunterVictim, setHunterVictim] = useState(null);
+  const [hunterTarget, setHunterTarget] = useState(null);
+  const [hunterContext, setHunterContext] = useState(null); // "night" | "day"
 
   // ═══════ STORAGE ═══════
   useEffect(() => {
@@ -138,11 +142,51 @@ export default function App() {
   const valid = allAssigned && roleCount("wolf")>=1;
   const applySugg = () => { const sg=getSuggestion(); const np=[...players]; let idx=0; for(const[rid,c] of Object.entries(sg)){for(let i=0;i<c&&idx<np.length;i++,idx++) np[idx]={...np[idx],role:rid};} setPlayers(np); };
 
+  const finishNightResolution = (np) => {
+    const w = checkWin(np);
+    if(w) { setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return; }
+    setScreen("day_announce");
+  };
+
+  const finishVoteResolution = (np) => {
+    const w = checkWin(np);
+    if(w) { setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return; }
+    goNextNight();
+  };
+
+  const confirmHunterShot = () => {
+    let np = [...players];
+    if(hunterTarget !== null) {
+      addLog({type:"result", round, text:`🔫 Thợ Săn ${np[hunterVictim].name} bắn: ${np[hunterTarget].name}`});
+      np = killP(hunterTarget, "Bị Thợ Săn bắn", round, np);
+      const casc = cascadeLovers(np, round);
+      np = casc.np;
+      casc.extra.forEach(d => addLog({type:"result", round, text:`💔 ${np[d.id].name} chết theo tình nhân`}));
+      addLog({type:"result", round, text:`💀 ${np[hunterTarget].name} chết — Bị Thợ Săn bắn`});
+      setPlayers(np);
+    }
+    setShowHunterPopup(false);
+    setHunterVictim(null);
+    setHunterTarget(null);
+    if(hunterContext === "night") finishNightResolution(np);
+    else finishVoteResolution(np);
+  };
+
+  const skipHunterShot = () => {
+    const np = [...players];
+    setShowHunterPopup(false);
+    setHunterVictim(null);
+    setHunterTarget(null);
+    if(hunterContext === "night") finishNightResolution(np);
+    else finishVoteResolution(np);
+  };
+
   const startGame = () => {
     setNightIdx(0); setRound(1); setGameLog([]); setWolfTarget(null); setGuardTarget(null); setLastGuardTarget(null);
     setSeerTarget(null); setSeerRevealed(false); setWitchHealLeft(true); setWitchKillLeft(true); setWitchAction(null);
     setWitchKillTarget(null); setWinner(null); setNightDeaths([]); setNightSaves([]);
     setLovers(null); setCupidDone(false); setCupidPick([]);
+    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null); setHunterContext(null);
     setGameLog([{type:"system",round:1,text:"🌙 Trời tối, cả làng đi ngủ."}]);
     setScreen("night");
   };
@@ -189,9 +233,15 @@ export default function App() {
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
     setPlayers(np); setNightDeaths(deaths); setNightSaves(saves);
     addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
-    const w=checkWin(np);
-    if(w){setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return;}
-    setScreen("day_announce");
+    const hunterDeath = deaths.find(d => np[d.id].role === "hunter");
+    if(hunterDeath) {
+      setHunterVictim(hunterDeath.id);
+      setHunterTarget(null);
+      setHunterContext("night");
+      setShowHunterPopup(true);
+      return;
+    }
+    finishNightResolution(np);
   };
 
   const goDiscuss = () => { setTimer(120); setTimerOn(false); setTimerVis(false); setScreen("day"); };
@@ -204,6 +254,15 @@ export default function App() {
       const casc=cascadeLovers(np,round); np=casc.np;
       casc.extra.forEach(d=>addLog({type:"day",round,text:`💔 ${np[d.id].name} chết theo tình nhân`}));
       setPlayers(np);
+      const allDead = [voteTarget, ...casc.extra.map(d=>d.id)];
+      const hunterDead = allDead.find(id => np[id].role === "hunter");
+      if(hunterDead !== undefined) {
+        setHunterVictim(hunterDead);
+        setHunterTarget(null);
+        setHunterContext("day");
+        setShowHunterPopup(true);
+        return;
+      }
       const w=checkWin(np);
       if(w){setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return;}
     } else addLog({type:"day",round,text:"🕊️ Không ai bị treo cổ"});
@@ -212,7 +271,7 @@ export default function App() {
   const goNextNight = () => {
     setRound(r=>r+1); setNightIdx(0); setWolfTarget(null); setGuardTarget(null);
     setSeerTarget(null); setSeerRevealed(false); setWitchAction(null); setWitchKillTarget(null);
-    setNightDeaths([]); setNightSaves([]); setCupidPick([]); setScreen("night");
+    setNightDeaths([]); setNightSaves([]); setCupidPick([]); setHunterTarget(null); setScreen("night");
   };
 
   const tryEndGame = () => setShowEndConfirm(true);
@@ -334,6 +393,39 @@ export default function App() {
       </div>
     </div>
   );
+
+  const HunterPopup = () => {
+    if(hunterVictim === null) return null;
+    const victim = players[hunterVictim];
+    return (
+      <div style={st.ov}>
+        <div style={{...st.pop, borderColor:"rgba(230,126,34,0.5)", background:"rgba(30,15,5,0.97)", maxWidth:300}}>
+          <span style={{fontSize:36}}>🔫</span>
+          <p style={{fontSize:15,fontWeight:700,margin:"6px 0 2px"}}>Thợ Săn {victim?.name} đã chết!</p>
+          <p style={{fontSize:12,color:"rgba(255,255,255,0.45)",margin:"0 0 10px"}}>Chọn người để bắn hoặc bỏ qua.</p>
+          <Board
+            selectable={true}
+            onSelect={setHunterTarget}
+            selectedId={hunterTarget}
+            disabledIds={[hunterVictim]}
+            mode="kill"
+          />
+          <div style={{display:"flex",gap:8,marginTop:10,width:"100%"}}>
+            <button
+              style={{flex:1,padding:"10px",borderRadius:9,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.6)",fontSize:13,fontWeight:600,cursor:"pointer"}}
+              onClick={skipHunterShot}>
+              Bỏ qua
+            </button>
+            <button
+              style={{flex:1,padding:"10px",borderRadius:9,border:"none",background:hunterTarget!==null?"linear-gradient(135deg,#e67e22,#ca6f1e)":"rgba(255,255,255,0.05)",color:hunterTarget!==null?"#fff":"rgba(255,255,255,0.2)",fontSize:13,fontWeight:600,cursor:hunterTarget!==null?"pointer":"not-allowed"}}
+              onClick={hunterTarget!==null?confirmHunterShot:undefined}>
+              💀 Bắn {hunterTarget!==null?players[hunterTarget]?.name:"..."}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ═══════════════ RENDER ═══════════════
 
@@ -506,7 +598,7 @@ export default function App() {
           <button style={{...st.pri,opacity:blockNext?0.35:1,pointerEvents:blockNext?"none":"auto"}} onClick={nextNight}>{blockNext?"Xác nhận se duyên trước":nightIdx===phases.length-1?"☀️ Kết thúc đêm":dead?"Tiếp (skip) →":"Tiếp →"}</button>
         </div>
         <button style={st.endL} onClick={tryEndGame}>Kết thúc ván</button>
-      </div>{seerRevealed&&<SeerPopup/>}{showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}</div>);
+      </div>{seerRevealed&&<SeerPopup/>}{showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}{showHunterPopup&&<HunterPopup/>}</div>);
   }
 
   if(screen==="day_announce") return (<div style={{...st.page,background:"linear-gradient(180deg,#0e0e18 0%,#18122a 50%,#0e0e18 100%)"}}><div style={st.w}>
@@ -562,7 +654,7 @@ export default function App() {
     <button style={st.safeBtn} onClick={()=>{setVoteTarget(null);confirmVote();}}>✅ Không treo ai → Đêm</button>
     <button style={st.ghost} onClick={()=>setScreen("day")}>← Thảo luận</button>
     <button style={st.endL} onClick={tryEndGame}>Kết thúc ván</button>
-  {showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}</div></div>);
+  {showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}{showHunterPopup&&<HunterPopup/>}</div></div>);
 
   if(screen==="end") return (<div style={st.page}><div style={st.w}>
     <div style={{textAlign:"center",padding:"12px 0"}}>
