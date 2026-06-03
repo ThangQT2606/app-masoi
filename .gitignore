@@ -11,3 +11,5 @@
 /utils
 /vendor
 .env
+plan.txt
+.pnpm-store

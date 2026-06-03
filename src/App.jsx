@@ -74,6 +74,15 @@ export default function App() {
   const fmt = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,"0")}`;
   const checkWin = (ps) => { if(aliveW(ps).length===0) return "village"; if(aliveW(ps).length>=aliveG(ps).length) return "wolf"; return null; };
   const killP = (pid,cause,rd,ps) => { const n=[...ps]; n[pid]={...n[pid], alive:false, deathRound:rd, deathCause:cause}; return n; };
+  const LOVER_DEATH = "💔 Chết theo tình nhân";
+  const triggerHunterIfDead = (deadIds, np, context) => {
+    const hunterId = deadIds.find(id => np[id]?.role === "hunter" && np[id]?.deathCause !== LOVER_DEATH);
+    if(hunterId !== undefined) {
+      setHunterVictim(hunterId); setHunterTarget(null); setHunterContext(context); setShowHunterPopup(true);
+      return true;
+    }
+    return false;
+  };
   const getNightPhases = () => {
     const base = NIGHT_ORDER.filter(ph=>ph.id==="wolves"||hasRole(ph.role));
     if(!hasRole("cupid")) return base;
@@ -91,8 +100,8 @@ export default function App() {
   const cascadeLovers = (np, rd) => {
     if(!lovers) return { np, extra:[] };
     const [a,b]=lovers;
-    if(!np[a].alive && np[b].alive) { np=killP(b,"💔 Chết theo tình nhân",rd,np); return { np, extra:[{id:b,cause:"💔 Chết theo tình nhân"}] }; }
-    if(!np[b].alive && np[a].alive) { np=killP(a,"💔 Chết theo tình nhân",rd,np); return { np, extra:[{id:a,cause:"💔 Chết theo tình nhân"}] }; }
+    if(!np[a].alive && np[b].alive) { np=killP(b,LOVER_DEATH,rd,np); return { np, extra:[{id:b,cause:LOVER_DEATH}] }; }
+    if(!np[b].alive && np[a].alive) { np=killP(a,LOVER_DEATH,rd,np); return { np, extra:[{id:a,cause:LOVER_DEATH}] }; }
     return { np, extra:[] };
   };
   const confirmCupid = () => {
@@ -233,14 +242,7 @@ export default function App() {
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
     setPlayers(np); setNightDeaths(deaths); setNightSaves(saves);
     addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
-    const hunterDeath = deaths.find(d => np[d.id].role === "hunter");
-    if(hunterDeath) {
-      setHunterVictim(hunterDeath.id);
-      setHunterTarget(null);
-      setHunterContext("night");
-      setShowHunterPopup(true);
-      return;
-    }
+    if(triggerHunterIfDead(deaths.map(d=>d.id), np, "night")) return;
     finishNightResolution(np);
   };
 
@@ -255,14 +257,7 @@ export default function App() {
       casc.extra.forEach(d=>addLog({type:"day",round,text:`💔 ${np[d.id].name} chết theo tình nhân`}));
       setPlayers(np);
       const allDead = [voteTarget, ...casc.extra.map(d=>d.id)];
-      const hunterDead = allDead.find(id => np[id].role === "hunter");
-      if(hunterDead !== undefined) {
-        setHunterVictim(hunterDead);
-        setHunterTarget(null);
-        setHunterContext("day");
-        setShowHunterPopup(true);
-        return;
-      }
+      if(triggerHunterIfDead(allDead, np, "day")) return;
       const w=checkWin(np);
       if(w){setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return;}
     } else addLog({type:"day",round,text:"🕊️ Không ai bị treo cổ"});
@@ -403,7 +398,7 @@ export default function App() {
         <div style={{...st.pop, borderColor:"rgba(230,126,34,0.5)", background:"rgba(30,15,5,0.97)", maxWidth:300}}>
           <span style={{fontSize:36}}>🔫</span>
           <p style={{fontSize:15,fontWeight:700,margin:"6px 0 2px"}}>Thợ Săn {victim?.name} đã chết!</p>
-          <p style={{fontSize:12,color:"rgba(255,255,255,0.45)",margin:"0 0 10px"}}>Chọn người để bắn hoặc bỏ qua.</p>
+          <p style={{fontSize:12,color:"rgba(255,255,255,0.45)",margin:"0 0 10px"}}>Thợ Săn được bắn 1 người trước khi ra đi. Chọn mục tiêu hoặc bỏ qua.</p>
           <Board
             selectable={true}
             onSelect={setHunterTarget}
