@@ -290,6 +290,7 @@ export default function App() {
     setPlayers(names.map((n,i)=>({id:i,name:n,role:null,alive:true,deathRound:null,deathCause:null})));
     setGameLog([]); setWinner(null); setRound(1);
     setLovers(null); setCupidDone(false); setCupidPick([]);
+    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null); setHunterContext(null);
     setScreen("setup_roles"); // go straight to roles since names are kept
   };
 
