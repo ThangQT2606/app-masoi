@@ -259,6 +259,12 @@ export default function App() {
       setPlayers(np);
       const w=checkWin(np);
       if(w){setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return;}
+      const allDead = [voteTarget, ...casc.extra.map(d=>d.id)];
+      const hunterId = allDead.find(id => np[id]?.role === "hunter" && np[id]?.deathCause !== LOVER_DEATH);
+      if(hunterId !== undefined) {
+        setHunterVictim(hunterId); setHunterTarget(null); setShowHunterPopup(true);
+        return;
+      }
     } else addLog({type:"day",round,text:"🕊️ Không ai bị treo cổ"});
     goNextNight();
   };
