@@ -602,6 +602,33 @@ export default function App() {
       </div>{seerRevealed&&<SeerPopup/>}{showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}{showHunterPopup&&<HunterPopup/>}</div>);
   }
 
+  if(screen==="hunter_night") {
+    const victim = players[hunterVictim];
+    return (
+      <div style={{...st.page, background:"linear-gradient(180deg,#040410 0%,#0c0422 50%,#040410 100%)"}}>
+        <div style={st.stars}/><div style={st.w}>
+          <div style={st.top}>
+            <span style={st.badge}>🌙 Đêm {round}</span>
+            <button style={st.logBtn} onClick={()=>setShowLog(true)}>📜</button>
+          </div>
+          <div style={st.nBox}>
+            <span style={{fontSize:40,filter:"drop-shadow(0 0 8px rgba(230,126,34,0.4))"}}>🔫</span>
+            <h2 style={{fontSize:17,fontWeight:800,margin:"4px 0 2px"}}>Thợ Săn {victim?.name} đã bị giết!</h2>
+            <p style={{fontSize:11,color:"rgba(255,255,255,0.35)",margin:"1px 0 0",lineHeight:1.5,maxWidth:300,textAlign:"center"}}>Thợ Săn có muốn bắn ai trước khi ra đi không? Chọn mục tiêu hoặc bỏ qua.</p>
+          </div>
+          <Board selectable={true} onSelect={setHunterTarget} selectedId={hunterTarget} disabledIds={hunterVictim!==null?[hunterVictim]:[]} mode="kill"/>
+          <div style={st.r2}>
+            <button style={st.ghost} onClick={skipHunterShot}>Bỏ qua</button>
+            <button
+              style={{...st.pri, background:hunterTarget!==null?"linear-gradient(135deg,#e67e22,#ca6f1e)":"rgba(255,255,255,0.05)", color:hunterTarget!==null?"#fff":"rgba(255,255,255,0.2)", pointerEvents:hunterTarget!==null?"auto":"none"}}
+              onClick={hunterTarget!==null?confirmHunterShot:undefined}>
+              💀 Bắn {hunterTarget!==null?players[hunterTarget]?.name:"..."}
+            </button>
+          </div>
+        </div>{showLog&&<LogDrawer/>}</div>
+    );
+  }
+
   if(screen==="day_announce") return (<div style={{...st.page,background:"linear-gradient(180deg,#0e0e18 0%,#18122a 50%,#0e0e18 100%)"}}><div style={st.w}>
     <div style={st.top}><span style={st.badge}>☀️ Sáng ngày {round}</span><button style={st.logBtn} onClick={()=>setShowLog(true)}>📜</button></div>
     <div style={st.dBox}>
