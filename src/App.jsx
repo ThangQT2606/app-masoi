@@ -41,7 +41,6 @@ export default function App() {
   const [showHunterPopup, setShowHunterPopup] = useState(false);
   const [hunterVictim, setHunterVictim] = useState(null);
   const [hunterTarget, setHunterTarget] = useState(null);
-  const [hunterContext, setHunterContext] = useState(null); // "night" | "day"
 
   // ═══════ STORAGE ═══════
   useEffect(() => {
@@ -75,14 +74,6 @@ export default function App() {
   const checkWin = (ps) => { if(aliveW(ps).length===0) return "village"; if(aliveW(ps).length>=aliveG(ps).length) return "wolf"; return null; };
   const killP = (pid,cause,rd,ps) => { const n=[...ps]; n[pid]={...n[pid], alive:false, deathRound:rd, deathCause:cause}; return n; };
   const LOVER_DEATH = "💔 Chết theo tình nhân";
-  const triggerHunterIfDead = (deadIds, np, context) => {
-    const hunterId = deadIds.find(id => np[id]?.role === "hunter" && np[id]?.deathCause !== LOVER_DEATH);
-    if(hunterId !== undefined) {
-      setHunterVictim(hunterId); setHunterTarget(null); setHunterContext(context); setShowHunterPopup(true);
-      return true;
-    }
-    return false;
-  };
   const getNightPhases = () => {
     const base = NIGHT_ORDER.filter(ph=>ph.id==="wolves"||hasRole(ph.role));
     if(!hasRole("cupid")) return base;
@@ -165,11 +156,13 @@ export default function App() {
 
   const confirmHunterShot = () => {
     let np = [...players];
+    let cascExtra = [];
     if(hunterTarget !== null) {
       addLog({type:"result", round, text:`🔫 Thợ Săn ${np[hunterVictim].name} bắn: ${np[hunterTarget].name}`});
       np = killP(hunterTarget, "Bị Thợ Săn bắn", round, np);
       const casc = cascadeLovers(np, round);
       np = casc.np;
+      cascExtra = casc.extra;
       casc.extra.forEach(d => addLog({type:"result", round, text:`💔 ${np[d.id].name} chết theo tình nhân`}));
       addLog({type:"result", round, text:`💀 ${np[hunterTarget].name} chết — Bị Thợ Săn bắn`});
       setPlayers(np);
@@ -177,8 +170,12 @@ export default function App() {
     setShowHunterPopup(false);
     setHunterVictim(null);
     setHunterTarget(null);
-    if(hunterContext === "night") finishNightResolution(np);
-    else finishVoteResolution(np);
+    if(screen === "hunter_night") {
+      if(hunterTarget !== null) setNightDeaths(prev => [...prev, {id: hunterTarget, cause: "Bị Thợ Săn bắn"}, ...cascExtra]);
+      finishNightResolution(np);
+    } else {
+      finishVoteResolution(np);
+    }
   };
 
   const skipHunterShot = () => {
@@ -186,7 +183,7 @@ export default function App() {
     setShowHunterPopup(false);
     setHunterVictim(null);
     setHunterTarget(null);
-    if(hunterContext === "night") finishNightResolution(np);
+    if(screen === "hunter_night") finishNightResolution(np);
     else finishVoteResolution(np);
   };
 
@@ -195,7 +192,7 @@ export default function App() {
     setSeerTarget(null); setSeerRevealed(false); setWitchHealLeft(true); setWitchKillLeft(true); setWitchAction(null);
     setWitchKillTarget(null); setWinner(null); setNightDeaths([]); setNightSaves([]);
     setLovers(null); setCupidDone(false); setCupidPick([]);
-    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null); setHunterContext(null);
+    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null);
     setGameLog([{type:"system",round:1,text:"🌙 Trời tối, cả làng đi ngủ."}]);
     setScreen("night");
   };
@@ -242,7 +239,11 @@ export default function App() {
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
     setPlayers(np); setNightDeaths(deaths); setNightSaves(saves);
     addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
-    if(triggerHunterIfDead(deaths.map(d=>d.id), np, "night")) return;
+    const hunterId = deaths.find(d => np[d.id]?.role === "hunter" && np[d.id]?.deathCause !== LOVER_DEATH)?.id;
+    if(hunterId !== undefined) {
+      setHunterVictim(hunterId); setHunterTarget(null); setScreen("hunter_night");
+      return;
+    }
     finishNightResolution(np);
   };
 
@@ -256,10 +257,14 @@ export default function App() {
       const casc=cascadeLovers(np,round); np=casc.np;
       casc.extra.forEach(d=>addLog({type:"day",round,text:`💔 ${np[d.id].name} chết theo tình nhân`}));
       setPlayers(np);
-      const allDead = [voteTarget, ...casc.extra.map(d=>d.id)];
-      if(triggerHunterIfDead(allDead, np, "day")) return;
       const w=checkWin(np);
       if(w){setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return;}
+      const allDead = [voteTarget, ...casc.extra.map(d=>d.id)];
+      const hunterId = allDead.find(id => np[id]?.role === "hunter" && np[id]?.deathCause !== LOVER_DEATH);
+      if(hunterId !== undefined) {
+        setHunterVictim(hunterId); setHunterTarget(null); setShowHunterPopup(true);
+        return;
+      }
     } else addLog({type:"day",round,text:"🕊️ Không ai bị treo cổ"});
     goNextNight();
   };
@@ -285,7 +290,7 @@ export default function App() {
     setPlayers(names.map((n,i)=>({id:i,name:n,role:null,alive:true,deathRound:null,deathCause:null})));
     setGameLog([]); setWinner(null); setRound(1);
     setLovers(null); setCupidDone(false); setCupidPick([]);
-    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null); setHunterContext(null);
+    setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null);
     setScreen("setup_roles"); // go straight to roles since names are kept
   };
 
@@ -595,6 +600,33 @@ export default function App() {
         </div>
         <button style={st.endL} onClick={tryEndGame}>Kết thúc ván</button>
       </div>{seerRevealed&&<SeerPopup/>}{showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}{showHunterPopup&&<HunterPopup/>}</div>);
+  }
+
+  if(screen==="hunter_night") {
+    const victim = players[hunterVictim];
+    return (
+      <div style={{...st.page, background:"linear-gradient(180deg,#040410 0%,#0c0422 50%,#040410 100%)"}}>
+        <div style={st.stars}/><div style={st.w}>
+          <div style={st.top}>
+            <span style={st.badge}>🌙 Đêm {round}</span>
+            <button style={st.logBtn} onClick={()=>setShowLog(true)}>📜</button>
+          </div>
+          <div style={st.nBox}>
+            <span style={{fontSize:40,filter:"drop-shadow(0 0 8px rgba(230,126,34,0.4))"}}>🔫</span>
+            <h2 style={{fontSize:17,fontWeight:800,margin:"4px 0 2px"}}>Thợ Săn {victim?.name} đã bị giết!</h2>
+            <p style={{fontSize:11,color:"rgba(255,255,255,0.35)",margin:"1px 0 0",lineHeight:1.5,maxWidth:300,textAlign:"center"}}>Thợ Săn có muốn bắn ai trước khi ra đi không? Chọn mục tiêu hoặc bỏ qua.</p>
+          </div>
+          <Board selectable={true} onSelect={setHunterTarget} selectedId={hunterTarget} disabledIds={hunterVictim!==null?[hunterVictim]:[]} mode="kill"/>
+          <div style={st.r2}>
+            <button style={st.ghost} onClick={skipHunterShot}>Bỏ qua</button>
+            <button
+              style={{...st.pri, background:hunterTarget!==null?"linear-gradient(135deg,#e67e22,#ca6f1e)":"rgba(255,255,255,0.05)", color:hunterTarget!==null?"#fff":"rgba(255,255,255,0.2)", pointerEvents:hunterTarget!==null?"auto":"none"}}
+              onClick={hunterTarget!==null?confirmHunterShot:undefined}>
+              💀 Bắn {hunterTarget!==null?players[hunterTarget]?.name:"..."}
+            </button>
+          </div>
+        </div>{showLog&&<LogDrawer/>}</div>
+    );
   }
 
   if(screen==="day_announce") return (<div style={{...st.page,background:"linear-gradient(180deg,#0e0e18 0%,#18122a 50%,#0e0e18 100%)"}}><div style={st.w}>
