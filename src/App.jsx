@@ -156,11 +156,13 @@ export default function App() {
 
   const confirmHunterShot = () => {
     let np = [...players];
+    let cascExtra = [];
     if(hunterTarget !== null) {
       addLog({type:"result", round, text:`🔫 Thợ Săn ${np[hunterVictim].name} bắn: ${np[hunterTarget].name}`});
       np = killP(hunterTarget, "Bị Thợ Săn bắn", round, np);
       const casc = cascadeLovers(np, round);
       np = casc.np;
+      cascExtra = casc.extra;
       casc.extra.forEach(d => addLog({type:"result", round, text:`💔 ${np[d.id].name} chết theo tình nhân`}));
       addLog({type:"result", round, text:`💀 ${np[hunterTarget].name} chết — Bị Thợ Săn bắn`});
       setPlayers(np);
@@ -168,12 +170,21 @@ export default function App() {
     setShowHunterPopup(false);
     setHunterVictim(null);
     setHunterTarget(null);
+    if(screen === "hunter_night") {
+      if(hunterTarget !== null) setNightDeaths(prev => [...prev, {id: hunterTarget, cause: "Bị Thợ Săn bắn"}, ...cascExtra]);
+      finishNightResolution(np);
+    } else {
+      finishVoteResolution(np);
+    }
   };
 
   const skipHunterShot = () => {
+    const np = [...players];
     setShowHunterPopup(false);
     setHunterVictim(null);
     setHunterTarget(null);
+    if(screen === "hunter_night") finishNightResolution(np);
+    else finishVoteResolution(np);
   };
 
   const startGame = () => {
