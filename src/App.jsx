@@ -239,6 +239,11 @@ export default function App() {
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
     setPlayers(np); setNightDeaths(deaths); setNightSaves(saves);
     addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
+    const hunterId = deaths.find(d => np[d.id]?.role === "hunter" && np[d.id]?.deathCause !== LOVER_DEATH)?.id;
+    if(hunterId !== undefined) {
+      setHunterVictim(hunterId); setHunterTarget(null); setScreen("hunter_night");
+      return;
+    }
     finishNightResolution(np);
   };
 
