@@ -22,7 +22,8 @@ export default function App() {
   const [seerRevealed, setSeerRevealed] = useState(false);
   const [witchHealLeft, setWitchHealLeft] = useState(true);
   const [witchKillLeft, setWitchKillLeft] = useState(true);
-  const [witchAction, setWitchAction] = useState(null);
+  const [witchHealAction, setWitchHealAction] = useState(false);
+  const [witchStep, setWitchStep] = useState("heal");
   const [witchKillTarget, setWitchKillTarget] = useState(null);
   const [timer, setTimer] = useState(120);
   const [timerOn, setTimerOn] = useState(false);
@@ -190,8 +191,8 @@ export default function App() {
 
   const startGame = () => {
     setNightIdx(0); setRound(1); setGameLog([]); setWolfTarget(null); setGuardTarget(null); setLastGuardTarget(null);
-    setSeerTarget(null); setSeerRevealed(false); setWitchHealLeft(true); setWitchKillLeft(true); setWitchAction(null);
-    setWitchKillTarget(null); setWinner(null); setNightDeaths([]); setNightSaves([]);
+    setSeerTarget(null); setSeerRevealed(false); setWitchHealLeft(true); setWitchKillLeft(true); setWitchHealAction(false);
+    setWitchStep("heal"); setWitchKillTarget(null); setWinner(null); setNightDeaths([]); setNightSaves([]);
     setLovers(null); setCupidDone(false); setCupidPick([]);
     setShowHunterPopup(false); setHunterVictim(null); setHunterTarget(null);
     setGameLog([{type:"system",round:1,text:"🌙 Trời tối, cả làng đi ngủ."}]);
@@ -209,9 +210,9 @@ export default function App() {
       if(ph.id==="guard") addLog({type:"night",round,text:guardTarget!==null?`🛡️ Bảo Vệ: ${players[guardTarget].name}`:`🛡️ Bảo Vệ không bảo vệ ai`});
       if(ph.id==="seer"&&seerTarget!==null) addLog({type:"night",round,text:`🔮 Tiên Tri soi: ${players[seerTarget].name} → ${players[seerTarget].role==="wolf"?"SÓI":"DÂN"}`});
       if(ph.id==="witch") {
-        if(witchAction==="heal") addLog({type:"night",round,text:`🧪 Phù Thủy dùng bình cứu`});
-        else if(witchAction==="kill"&&witchKillTarget!==null) addLog({type:"night",round,text:`🧪 Phù Thủy giết: ${players[witchKillTarget].name}`});
-        else addLog({type:"night",round,text:`🧪 Phù Thủy không dùng bình`});
+        if(witchHealAction) addLog({type:"night",round,text:`🧪 Phù Thủy dùng bình cứu`});
+        if(witchKillTarget!==null) addLog({type:"night",round,text:`🧪 Phù Thủy giết: ${players[witchKillTarget].name}`});
+        if(!witchHealAction&&witchKillTarget===null) addLog({type:"night",round,text:`🧪 Phù Thủy không dùng bình`});
       }
     }
     if(nightIdx < phases.length-1) setNightIdx(nightIdx+1);
@@ -223,17 +224,17 @@ export default function App() {
     if(wolfTarget!==null&&np[wolfTarget].alive) {
       let saved=false;
       if(guardTarget===wolfTarget){saved=true; saves.push({id:wolfTarget,by:"Bảo Vệ"});}
-      if(witchAction==="heal"){saved=true; saves.push({id:wolfTarget,by:"Phù Thủy (cứu)"});}
+      if(witchHealAction){saved=true; saves.push({id:wolfTarget,by:"Phù Thủy (cứu)"});}
       if(!saved) deaths.push({id:wolfTarget,cause:"Bị sói cắn"});
     }
-    if(witchAction==="kill"&&witchKillTarget!==null&&np[witchKillTarget].alive) {
+    if(witchKillTarget!==null&&np[witchKillTarget].alive) {
       if(!deaths.find(d=>d.id===witchKillTarget)) deaths.push({id:witchKillTarget,cause:"Bị Phù Thủy giết"});
     }
     deaths.forEach(d=>{np=killP(d.id,d.cause,round,np);});
     const casc=cascadeLovers(np,round); np=casc.np; casc.extra.forEach(d=>deaths.push(d));
     saves.forEach(sv=>addLog({type:"night",round,text:`✨ ${np[sv.id].name} được ${sv.by} cứu`}));
-    if(witchAction==="heal") setWitchHealLeft(false);
-    if(witchAction==="kill") setWitchKillLeft(false);
+    if(witchHealAction) setWitchHealLeft(false);
+    if(witchKillTarget!==null) setWitchKillLeft(false);
     setLastGuardTarget(guardTarget);
     if(deaths.length===0) addLog({type:"result",round,text:"Đêm bình yên — không ai chết"});
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
@@ -269,7 +270,7 @@ export default function App() {
   };
   const goNextNight = () => {
     setRound(r=>r+1); setNightIdx(0); setWolfTarget(null); setGuardTarget(null);
-    setSeerTarget(null); setSeerRevealed(false); setWitchAction(null); setWitchKillTarget(null);
+    setSeerTarget(null); setSeerRevealed(false); setWitchHealAction(false); setWitchStep("heal"); setWitchKillTarget(null);
     setNightDeaths([]); setNightSaves([]); setCupidPick([]); setHunterTarget(null); setScreen("night");
   };
 
