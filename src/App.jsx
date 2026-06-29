@@ -226,8 +226,7 @@ export default function App() {
       if(!saved) deaths.push({id:wolfTarget,cause:"Bị sói cắn"});
     }
     if(witchAction==="kill"&&witchKillTarget!==null&&np[witchKillTarget].alive) {
-      if(guardTarget===witchKillTarget) saves.push({id:witchKillTarget,by:"Bảo Vệ (chặn bình độc)"});
-      else if(!deaths.find(d=>d.id===witchKillTarget)) deaths.push({id:witchKillTarget,cause:"Bị Phù Thủy giết"});
+      if(!deaths.find(d=>d.id===witchKillTarget)) deaths.push({id:witchKillTarget,cause:"Bị Phù Thủy giết"});
     }
     deaths.forEach(d=>{np=killP(d.id,d.cause,round,np);});
     const casc=cascadeLovers(np,round); np=casc.np; casc.extra.forEach(d=>deaths.push(d));
