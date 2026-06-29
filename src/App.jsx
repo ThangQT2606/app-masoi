@@ -520,7 +520,8 @@ export default function App() {
     if(!curPhase) return null;
     const dead = phaseDead(curPhase);
     const cupidActive = curPhase.id==="cupid" && !dead;
-    const blockNext = cupidActive && !lovers; // phải xác nhận se duyên trước khi qua bước sau
+    const witchBlocking = curPhase.id==="witch" && !dead && witchStep==="heal";
+    const blockNext = (cupidActive && !lovers) || witchBlocking; // phải xác nhận se duyên trước khi qua bước sau
     let bp={selectable:false}, actUI=null;
 
     if(curPhase.id==="wolves"&&!dead) {
@@ -544,27 +545,45 @@ export default function App() {
     }
     if(curPhase.id==="witch"&&!dead) {
       const bn=wolfTarget!==null?players[wolfTarget].name:null;
-      bp={selectable:witchAction==="kill", selectedId:witchKillTarget, mode:"kill", onSelect:setWitchKillTarget};
-      actUI=(<div style={st.witchP}>
-        <div style={st.witchInfo}>{bn?<>🐺 Đêm nay <strong>{bn}</strong> sẽ chết</>:"🐺 Đêm nay sói không cắn ai"}</div>
-        <div style={{display:"flex",gap:6}}>
-          <button disabled={!witchHealLeft||!bn||witchAction==="kill"} onClick={()=>setWitchAction(witchAction==="heal"?null:"heal")}
-            style={{...st.potBtn,borderColor:"rgba(46,204,113,0.3)",background:witchAction==="heal"?"rgba(46,204,113,0.22)":"rgba(46,204,113,0.06)",opacity:witchHealLeft&&bn&&witchAction!=="kill"?1:0.28}}>
-            <span style={{fontSize:16}}>💚</span>
-            <span style={{fontSize:10,fontWeight:600,color:"#2ecc71"}}>{witchAction==="heal"?"✓ Cứu":"Bình cứu"}</span>
-            {!witchHealLeft && <span style={st.used}>Đã dùng</span>}
-          </button>
-          <button disabled={!witchKillLeft||witchAction==="heal"} onClick={()=>{setWitchAction(witchAction==="kill"?null:"kill");setWitchKillTarget(null);}}
-            style={{...st.potBtn,borderColor:"rgba(231,76,60,0.3)",background:witchAction==="kill"?"rgba(231,76,60,0.22)":"rgba(231,76,60,0.06)",opacity:witchKillLeft&&witchAction!=="heal"?1:0.28}}>
-            <span style={{fontSize:16}}>☠️</span>
-            <span style={{fontSize:10,fontWeight:600,color:"#e74c3c"}}>{witchAction==="kill"?"Chọn ↓":"Bình độc"}</span>
-            {!witchKillLeft && <span style={st.used}>Đã dùng</span>}
-          </button>
-        </div>
-        {witchAction==="heal" && <div style={{...st.ab,borderColor:"rgba(46,204,113,0.25)",background:"rgba(46,204,113,0.08)"}}>💚 Cứu: <strong>{bn}</strong></div>}
-        {witchAction==="kill"&&witchKillTarget!==null && <div style={{...st.ab,borderColor:"rgba(231,76,60,0.25)",background:"rgba(231,76,60,0.08)"}}>☠️ Giết: <strong>{players[witchKillTarget].name}</strong></div>}
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.25)",textAlign:"center"}}>⚠ Mỗi đêm chỉ dùng tối đa 1 bình</div>
-      </div>);
+      if(witchStep==="heal") {
+        bp={selectable:false};
+        actUI=(<div style={st.witchP}>
+          {!witchHealLeft
+            ? <div style={st.witchInfo}>💚 Bình cứu: <strong>Đã dùng</strong></div>
+            : bn
+              ? <>
+                  <div style={st.witchInfo}>🐺 Đêm nay <strong>{bn}</strong> sẽ chết</div>
+                  <div style={{display:"flex",gap:6}}>
+                    <button onClick={()=>setWitchHealAction(true)}
+                      style={{...st.potBtn,borderColor:"rgba(46,204,113,0.3)",background:witchHealAction?"rgba(46,204,113,0.22)":"rgba(46,204,113,0.06)"}}>
+                      <span style={{fontSize:16}}>💚</span>
+                      <span style={{fontSize:10,fontWeight:600,color:"#2ecc71"}}>{witchHealAction?"✓ Cứu":"Bình cứu"}</span>
+                    </button>
+                    <button onClick={()=>setWitchHealAction(false)}
+                      style={{...st.potBtn,borderColor:"rgba(255,255,255,0.1)",background:!witchHealAction?"rgba(255,255,255,0.08)":"rgba(255,255,255,0.02)"}}>
+                      <span style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Bỏ qua</span>
+                    </button>
+                  </div>
+                  {witchHealAction&&<div style={{...st.ab,borderColor:"rgba(46,204,113,0.25)",background:"rgba(46,204,113,0.08)"}}>💚 Cứu: <strong>{bn}</strong></div>}
+                </>
+              : <div style={st.witchInfo}>🐺 Đêm nay sói không cắn ai</div>
+          }
+          <button style={st.pri} onClick={()=>setWitchStep("kill")}>→ Tiếp: Bình độc</button>
+        </div>);
+      } else {
+        const disHeal=witchHealAction&&wolfTarget!==null?[wolfTarget]:[];
+        bp={selectable:witchKillLeft,onSelect:setWitchKillTarget,selectedId:witchKillTarget,mode:"kill",disabledIds:disHeal};
+        actUI=(<div style={st.witchP}>
+          {!witchKillLeft
+            ? <div style={st.witchInfo}>☠️ Bình độc: <strong>Đã dùng</strong></div>
+            : <>
+                <div style={st.witchInfo}>☠️ Chọn người để hạ độc (hoặc bỏ qua)</div>
+                {witchKillTarget!==null&&<div style={{...st.ab,borderColor:"rgba(231,76,60,0.25)",background:"rgba(231,76,60,0.08)"}}>☠️ Giết: <strong>{players[witchKillTarget].name}</strong></div>}
+                <button style={st.skipB} onClick={()=>setWitchKillTarget(null)}>Bỏ qua bình độc</button>
+              </>
+          }
+        </div>);
+      }
     }
     if(curPhase.id==="cupid"&&!dead) {
       bp={selectable:true, selectedIds:cupidPick, mode:"cupid", onSelect:(pid)=>setCupidPick(cur=>cur.includes(pid)?cur.filter(x=>x!==pid):cur.length<2?[...cur,pid]:cur)};
@@ -596,7 +615,7 @@ export default function App() {
         {!dead && <Board {...bp}/>}
         <div style={st.r2}>
           <button style={{...st.ghost,opacity:nightIdx===0?0.3:1}} onClick={()=>nightIdx>0&&setNightIdx(nightIdx-1)} disabled={nightIdx===0}>← Trước</button>
-          <button style={{...st.pri,opacity:blockNext?0.35:1,pointerEvents:blockNext?"none":"auto"}} onClick={nextNight}>{blockNext?"Xác nhận se duyên trước":nightIdx===phases.length-1?"☀️ Kết thúc đêm":dead?"Tiếp (skip) →":"Tiếp →"}</button>
+          <button style={{...st.pri,opacity:blockNext?0.35:1,pointerEvents:blockNext?"none":"auto"}} onClick={nextNight}>{blockNext?(witchBlocking?"Xác nhận bình cứu trước":"Xác nhận se duyên trước"):nightIdx===phases.length-1?"☀️ Kết thúc đêm":dead?"Tiếp (skip) →":"Tiếp →"}</button>
         </div>
         <button style={st.endL} onClick={tryEndGame}>Kết thúc ván</button>
       </div>{seerRevealed&&<SeerPopup/>}{showLog&&<LogDrawer/>}{showEndConfirm&&<EndConfirm/>}{showHunterPopup&&<HunterPopup/>}</div>);
