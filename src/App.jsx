@@ -143,6 +143,7 @@ export default function App() {
   const applySugg = () => { const sg=getSuggestion(); const np=[...players]; let idx=0; for(const[rid,c] of Object.entries(sg)){for(let i=0;i<c&&idx<np.length;i++,idx++) np[idx]={...np[idx],role:rid};} setPlayers(np); };
 
   const finishNightResolution = (np) => {
+    addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
     const w = checkWin(np);
     if(w) { setWinner(w); addLog({type:"system",round,text:w==="wolf"?"🐺 Phe Sói thắng!":"🏘️ Phe Dân thắng!"}); setScreen("end"); return; }
     setScreen("day_announce");
@@ -237,7 +238,6 @@ export default function App() {
     if(deaths.length===0) addLog({type:"result",round,text:"Đêm bình yên — không ai chết"});
     deaths.forEach(d=>addLog({type:"result",round,text:`💀 ${np[d.id].name} (${R(np[d.id].role).name}) chết — ${d.cause}`}));
     setPlayers(np); setNightDeaths(deaths); setNightSaves(saves);
-    addLog({type:"system",round,text:"☀️ Trời sáng, cả làng thức dậy."});
     const hunterId = deaths.find(d => np[d.id]?.role === "hunter" && np[d.id]?.deathCause !== LOVER_DEATH)?.id;
     if(hunterId !== undefined) {
       setHunterVictim(hunterId); setHunterTarget(null); setScreen("hunter_night");
