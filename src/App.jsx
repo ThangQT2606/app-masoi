@@ -614,7 +614,7 @@ export default function App() {
         {!dead && actUI}
         {!dead && <Board {...bp}/>}
         <div style={st.r2}>
-          <button style={{...st.ghost,opacity:nightIdx===0?0.3:1}} onClick={()=>nightIdx>0&&setNightIdx(nightIdx-1)} disabled={nightIdx===0}>← Trước</button>
+          <button style={{...st.ghost,opacity:nightIdx===0?0.3:1}} onClick={()=>{if(nightIdx>0){setNightIdx(nightIdx-1);setWitchStep("heal");setWitchHealAction(false);setWitchKillTarget(null);}}} disabled={nightIdx===0}>← Trước</button>
           <button style={{...st.pri,opacity:blockNext?0.35:1,pointerEvents:blockNext?"none":"auto"}} onClick={nextNight}>{blockNext?(witchBlocking?"Xác nhận bình cứu trước":"Xác nhận se duyên trước"):nightIdx===phases.length-1?"☀️ Kết thúc đêm":dead?"Tiếp (skip) →":"Tiếp →"}</button>
         </div>
         <button style={st.endL} onClick={tryEndGame}>Kết thúc ván</button>
